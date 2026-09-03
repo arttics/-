@@ -47,7 +47,25 @@ jobs:
 
           echo "Android project found at: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+      - name: Fix missing Android theme
+        shell: bash
+        run: |
+          mkdir -p "$PROJECT_DIR/app/src/main/res/values"
 
+          cat > "$PROJECT_DIR/app/src/main/res/values/themes.xml" <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+
+              <style name="Theme.FamilySOS" parent="@android:style/Theme.Material.Light.NoActionBar">
+                  <item name="android:windowActionModeOverlay">true</item>
+                  <item name="android:windowNoTitle">true</item>
+              </style>
+
+          </resources>
+          EOF
+
+          echo "Created Theme.FamilySOS"
+          cat "$PROJECT_DIR/app/src/main/res/values/themes.xml"
       - name: Install Gradle 8.10.2
         shell: bash
         run: |
