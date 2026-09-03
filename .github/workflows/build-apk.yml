@@ -48,36 +48,22 @@ jobs:
           echo "Android project found at: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Download required Gradle version
+      - name: Install Gradle 8.10.2
         shell: bash
         run: |
-          PROPERTIES_FILE="$PROJECT_DIR/gradle/wrapper/gradle-wrapper.properties"
+          echo "Downloading Gradle 8.10.2..."
 
-          if [ ! -f "$PROPERTIES_FILE" ]; then
-            echo "ERROR: gradle-wrapper.properties not found"
-            exit 1
-          fi
-
-          DISTRIBUTION_URL=$(grep '^distributionUrl=' "$PROPERTIES_FILE" | cut -d'=' -f2- | sed 's/\\:/:/g')
-
-          if [ -z "$DISTRIBUTION_URL" ]; then
-            echo "ERROR: Gradle distribution URL not found"
-            cat "$PROPERTIES_FILE"
-            exit 1
-          fi
-
-          echo "Downloading Gradle from:"
-          echo "$DISTRIBUTION_URL"
-
-          curl -L "$DISTRIBUTION_URL" -o /tmp/gradle.zip
+          curl -L \
+            https://services.gradle.org/distributions/gradle-8.10.2-bin.zip \
+            -o /tmp/gradle.zip
 
           mkdir -p /tmp/gradle
           unzip -q /tmp/gradle.zip -d /tmp/gradle
 
-          GRADLE_BIN=$(find /tmp/gradle -type f -path "*/bin/gradle" | head -n 1)
+          GRADLE_BIN="/tmp/gradle/gradle-8.10.2/bin/gradle"
 
-          if [ -z "$GRADLE_BIN" ]; then
-            echo "ERROR: Gradle executable not found"
+          if [ ! -f "$GRADLE_BIN" ]; then
+            echo "ERROR: Gradle 8.10.2 executable not found"
             exit 1
           fi
 
@@ -86,7 +72,6 @@ jobs:
           echo "GRADLE_BIN=$GRADLE_BIN" >> "$GITHUB_ENV"
 
           "$GRADLE_BIN" --version
-
       - name: Build Debug APK
         shell: bash
         run: |
