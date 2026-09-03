@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -26,7 +26,7 @@ jobs:
           ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found in repository"
+            echo "ERROR: No ZIP file found"
             exit 1
           fi
 
@@ -35,25 +35,63 @@ jobs:
           mkdir -p extracted
           unzip -q "$ZIP_FILE" -d extracted
 
-          GRADLEW=$(find extracted -type f -name "gradlew" | head -n 1)
+          SETTINGS_FILE=$(find extracted -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -n 1)
 
-          if [ -z "$GRADLEW" ]; then
-            echo "ERROR: gradlew was not found inside the ZIP"
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: Android project root not found"
             find extracted -maxdepth 4 -type f
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$GRADLEW")
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
 
           echo "Android project found at: $PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Download required Gradle version
+        shell: bash
+        run: |
+          PROPERTIES_FILE="$PROJECT_DIR/gradle/wrapper/gradle-wrapper.properties"
+
+          if [ ! -f "$PROPERTIES_FILE" ]; then
+            echo "ERROR: gradle-wrapper.properties not found"
+            exit 1
+          fi
+
+          DISTRIBUTION_URL=$(grep '^distributionUrl=' "$PROPERTIES_FILE" | cut -d'=' -f2- | sed 's/\\:/:/g')
+
+          if [ -z "$DISTRIBUTION_URL" ]; then
+            echo "ERROR: Gradle distribution URL not found"
+            cat "$PROPERTIES_FILE"
+            exit 1
+          fi
+
+          echo "Downloading Gradle from:"
+          echo "$DISTRIBUTION_URL"
+
+          curl -L "$DISTRIBUTION_URL" -o /tmp/gradle.zip
+
+          mkdir -p /tmp/gradle
+          unzip -q /tmp/gradle.zip -d /tmp/gradle
+
+          GRADLE_BIN=$(find /tmp/gradle -type f -path "*/bin/gradle" | head -n 1)
+
+          if [ -z "$GRADLE_BIN" ]; then
+            echo "ERROR: Gradle executable not found"
+            exit 1
+          fi
+
+          chmod +x "$GRADLE_BIN"
+
+          echo "GRADLE_BIN=$GRADLE_BIN" >> "$GITHUB_ENV"
+
+          "$GRADLE_BIN" --version
 
       - name: Build Debug APK
         shell: bash
         run: |
           cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          "$GRADLE_BIN" assembleDebug --stacktrace
 
       - name: Find generated APK
         shell: bash
